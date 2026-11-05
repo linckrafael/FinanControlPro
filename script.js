@@ -116,6 +116,8 @@ let auth = null;
 let currentUser = null;
 const docPath = "financontrol/mainUserData"; // Caminho direto no seu Firestore
 
+let isCloudLoaded = false; // Trava de segurança: impede sobrescrever o banco antes de ler
+
 async function initPersistence() {
     const badge = document.getElementById('syncStatusBadge');
     try {
@@ -124,13 +126,14 @@ async function initPersistence() {
 
         const stateDocRef = doc(db, docPath);
 
-        // Lê e sincroniza direto do Firestore sem depender do Firebase Auth
         onSnapshot(stateDocRef, (snapshot) => {
+            isCloudLoaded = true;
             if (snapshot.exists()) {
                 const cloudData = snapshot.data();
                 if (cloudData && Array.isArray(cloudData.profiles)) {
                     appState = {
-                        activeProfileId: cloudData.activeProfileId || (cloudData.profiles[0]?.id ?? null),
+                        // Mantém null ao abrir o site; só muda depois que você fizer login na sessão!
+                        activeProfileId: appState.activeProfileId,
                         globalCdiRate: cloudData.globalCdiRate || 11.15,
                         profiles: cloudData.profiles || [],
                         transactions: cloudData.transactions || [],
@@ -138,11 +141,6 @@ async function initPersistence() {
                     };
                     const cdiInput = document.getElementById('globalCdiRate');
                     if (cdiInput) cdiInput.value = appState.globalCdiRate;
-
-                    // Se já tem perfil salvo na nuvem, fecha o modal de boas-vindas
-                    if (appState.profiles.length > 0) {
-                        document.getElementById('profileLoginModal')?.classList.add('hidden');
-                    }
 
                     renderAll();
                     checkOnboardingState();
@@ -155,20 +153,20 @@ async function initPersistence() {
             }
         }, (err) => {
             console.warn("Aviso no listener Firestore:", err);
-            checkOnboardingState();
         });
     } catch (e) {
         console.warn("Erro ao conectar ao Firebase:", e);
-        checkOnboardingState();
     }
 }
 
 async function saveStateToCloud() {
     renderAll();
-    if (db) {
+    if (db && isCloudLoaded) {
         try {
             const stateDocRef = doc(db, docPath);
-            await setDoc(stateDocRef, JSON.parse(JSON.stringify(appState)));
+            const dataToSave = JSON.parse(JSON.stringify(appState));
+            dataToSave.activeProfileId = null; // Garante que a nuvem nunca deixe um perfil logado
+            await setDoc(stateDocRef, dataToSave);
         } catch (err) {
             console.warn("Erro ao sincronizar com o Firebase:", err);
         }
@@ -231,8 +229,8 @@ function showToast(msg) {
 // 4. PERFIS MULTI-USUÁRIO
 // ---------------------------------------------------------
 function getActiveProfile() {
-    if (!appState.profiles || appState.profiles.length === 0) return null;
-    return appState.profiles.find(p => p.id === appState.activeProfileId) || appState.profiles[0];
+    if (!appState.profiles || appState.profiles.length === 0 || !appState.activeProfileId) return null;
+    return appState.profiles.find(p => p.id === appState.activeProfileId) || null;
 }
 
 function checkOnboardingState() {
@@ -251,7 +249,14 @@ function checkOnboardingState() {
         newForm.classList.remove('hidden');
         modal.classList.remove('hidden');
         renderProfileModalCards();
-        setTimeout(() => document.getElementById('newProfName')?.focus(), 100);
+    } else if (!appState.activeProfileId) {
+        // Exige a escolha de um perfil (e PIN, se tiver) sempre que abrir ou der F5
+        title.textContent = 'Quem está acessando?';
+        sub.textContent = 'Selecione o seu perfil abaixo para carregar seus dados.';
+        closeBtn.classList.add('hidden'); // Impede fechar o modal sem escolher um perfil
+        newForm.classList.add('hidden');
+        modal.classList.remove('hidden');
+        renderProfileModalCards();
     } else {
         title.textContent = 'Alternar ou Criar Perfil';
         sub.textContent = 'Cada perfil possui seus próprios lançamentos, cartões e cofrinhos separados.';
@@ -436,6 +441,46 @@ function renderKPIsAndFlow() {
     netEl.className = `text-xl font-extrabold mt-2 ${netBalance >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-500'}`;
     document.getElementById('kpiVaultTotal').textContent = `Cofrinhos: ${formatBRL(totalVaultNet)}`;
     document.getElementById('kpiCommitBadge').textContent = `${commitPct}% da renda`;
+
+    // 6. Cálculo do Saldo Acumulado em Conta (Histórico total até o fim do mês/período selecionado)
+    const lastDayOfViewMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
+    const cutoffDate = useCustomDateRange
+        ? customEndDate
+        : `${viewYear}-${String(viewMonth + 1).padStart(2, '0')}-${String(lastDayOfViewMonth).padStart(2, '0')}`;
+
+    let cumulativeIncome = 0;
+    let cumulativeOutflows = 0;
+
+    profTxs.forEach(t => {
+        if (!t.date) return;
+
+        // Se for assinatura recorrente no cartão, conta 1 vez para cada mês desde o início dela até o mês atual
+        if (t.type === 'credit_card' && t.isRecurring) {
+            const [ry, rm] = t.date.split('-').map(Number);
+            const [cy, cm] = cutoffDate.split('-').map(Number);
+            const monthsActive = (cy * 12 + (cm - 1)) - (ry * 12 + (rm - 1)) + 1;
+            if (monthsActive > 0) {
+                cumulativeOutflows += Number(t.amount || 0) * monthsActive;
+            }
+        } else if (t.date <= cutoffDate) {
+            if (t.type === 'income') {
+                cumulativeIncome += Number(t.amount || 0);
+            } else {
+                cumulativeOutflows += Number(t.amount || 0);
+            }
+        }
+    });
+
+    const cumulativeBalance = cumulativeIncome - cumulativeOutflows;
+    const cumEl = document.getElementById('kpiCumulativeBalance');
+    if (cumEl) {
+        cumEl.textContent = formatBRL(cumulativeBalance);
+        cumEl.className = `text-xl font-extrabold mt-2 ${cumulativeBalance >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-500'}`;
+        
+        // Mostra também a soma Conta + Cofrinhos no subtítulo do card
+        const totalPatrimony = cumulativeBalance + totalVaultNet;
+        document.getElementById('kpiCumulativeSub').textContent = `C/ Cofrinhos: ${formatBRL(totalPatrimony)}`;
+    }
 
     document.getElementById('listTotalIncome').textContent = formatBRL(totalIncome);
     document.getElementById('listTotalFixed').textContent = formatBRL(totalFixed);

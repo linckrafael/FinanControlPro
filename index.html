@@ -255,8 +255,8 @@
             </div>
         </div>
 
-        <!-- 5 Cards de Resumo (KPIs) -->
-        <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5">
+        <!-- 6 Cards de Resumo (KPIs) - Troque lg:grid-cols-5 por lg:grid-cols-6 na linha abaixo -->
+        <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3.5">
             <!-- 1. Rendimentos -->
             <div class="glass-card rounded-2xl p-4 border border-slate-200 dark:border-slate-800 shadow-sm">
                 <div class="flex items-center justify-between">
@@ -319,6 +319,20 @@
                 <div class="flex items-center justify-between text-[11px] mt-1">
                     <span class="text-purple-500 font-semibold" id="kpiVaultTotal">Cofrinhos: R$ 0,00</span>
                     <span id="kpiCommitBadge" class="font-bold text-slate-400">0% usado</span>
+                </div>
+            </div>
+
+            <!-- 6. Saldo Acumulado em Conta (Geral) -->
+            <div class="glass-card rounded-2xl p-4 border border-emerald-500/40 bg-gradient-to-br from-emerald-500/10 via-teal-500/5 to-transparent shadow-sm">
+                <div class="flex items-center justify-between">
+                    <span class="text-[11px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">Saldo em Conta</span>
+                    <div class="w-8 h-8 rounded-xl bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-emerald-500">
+                        <i data-lucide="landmark" class="w-4 h-4"></i>
+                    </div>
+                </div>
+                <h2 id="kpiCumulativeBalance" class="text-xl font-extrabold text-emerald-600 dark:text-emerald-400 mt-2">R$ 0,00</h2>
+                <div class="flex items-center justify-between text-[11px] mt-1">
+                    <span id="kpiCumulativeSub" class="text-slate-500 dark:text-slate-400 truncate">Acumulado até o mês</span>
                 </div>
             </div>
         </section>
