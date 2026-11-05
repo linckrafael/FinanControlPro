@@ -1,5 +1,4 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
 import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
 // Suas credenciais do Firebase
@@ -121,38 +120,43 @@ async function initPersistence() {
     const badge = document.getElementById('syncStatusBadge');
     try {
         const app = initializeApp(firebaseConfig);
-        auth = getAuth(app);
         db = getFirestore(app);
 
-        await signInAnonymously(auth);
-        currentUser = auth.currentUser;
+        const stateDocRef = doc(db, docPath);
 
-        if (currentUser) {
-            const stateDocRef = doc(db, docPath);
-            onSnapshot(stateDocRef, (snapshot) => {
-                if (snapshot.exists()) {
-                    const cloudData = snapshot.data();
-                    if (cloudData && Array.isArray(cloudData.profiles)) {
-                        appState = {
-                            activeProfileId: cloudData.activeProfileId || (cloudData.profiles[0]?.id ?? null),
-                            globalCdiRate: cloudData.globalCdiRate || 11.15,
-                            profiles: cloudData.profiles || [],
-                            transactions: cloudData.transactions || [],
-                            vaults: cloudData.vaults || []
-                        };
-                        document.getElementById('globalCdiRate').value = appState.globalCdiRate;
-                        renderAll();
-                        checkOnboardingState();
+        // Lê e sincroniza direto do Firestore sem depender do Firebase Auth
+        onSnapshot(stateDocRef, (snapshot) => {
+            if (snapshot.exists()) {
+                const cloudData = snapshot.data();
+                if (cloudData && Array.isArray(cloudData.profiles)) {
+                    appState = {
+                        activeProfileId: cloudData.activeProfileId || (cloudData.profiles[0]?.id ?? null),
+                        globalCdiRate: cloudData.globalCdiRate || 11.15,
+                        profiles: cloudData.profiles || [],
+                        transactions: cloudData.transactions || [],
+                        vaults: cloudData.vaults || []
+                    };
+                    const cdiInput = document.getElementById('globalCdiRate');
+                    if (cdiInput) cdiInput.value = appState.globalCdiRate;
+
+                    // Se já tem perfil salvo na nuvem, fecha o modal de boas-vindas
+                    if (appState.profiles.length > 0) {
+                        document.getElementById('profileLoginModal')?.classList.add('hidden');
                     }
-                } else {
+
+                    renderAll();
                     checkOnboardingState();
                 }
-                badge.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Sincronizado`;
-            }, (err) => {
-                console.warn("Aviso no listener Firestore:", err);
+            } else {
                 checkOnboardingState();
-            });
-        }
+            }
+            if (badge) {
+                badge.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Sincronizado`;
+            }
+        }, (err) => {
+            console.warn("Aviso no listener Firestore:", err);
+            checkOnboardingState();
+        });
     } catch (e) {
         console.warn("Erro ao conectar ao Firebase:", e);
         checkOnboardingState();
@@ -853,7 +857,7 @@ function initApp() {
     populateFlowCategories('income');
     updateCardInstallmentPreview();
     renderAll();
-    checkOnboardingState();
+    // checkOnboardingState();
     initPersistence();
 
     document.getElementById('deleteOnlyOneBtn').addEventListener('click', () => {
