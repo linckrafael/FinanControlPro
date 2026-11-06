@@ -1,38 +1,100 @@
+:root {
+    --bg: #fafafa;
+    --surface: #ffffff;
+    --surface-hover: #f4f4f5;
+    --border: #e4e4e7;
+    --text: #09090b;
+    --muted: #71717a;
+}
+
+html.dark {
+    --bg: #0a0a0c;
+    --surface: #111114;
+    --surface-hover: #18181c;
+    --border: #222226;
+    --text: #f4f4f5;
+    --muted: #71717a;
+}
+
 body {
-            font-family: 'Inter', sans-serif;
-            -webkit-tap-highlight-color: transparent;
-        }
-        ::-webkit-scrollbar {
-            width: 6px;
-            height: 6px;
-        }
-        ::-webkit-scrollbar-track {
-            background: rgba(15, 23, 42, 0.3);
-        }
-        ::-webkit-scrollbar-thumb {
-            background: rgba(100, 116, 139, 0.5);
-            border-radius: 9999px;
-        }
-        ::-webkit-scrollbar-thumb:hover {
-            background: rgba(100, 116, 139, 0.8);
-        }
-        .glass-card {
-            background: rgba(30, 41, 59, 0.72);
-            backdrop-filter: blur(14px);
-            -webkit-backdrop-filter: blur(14px);
-        }
-        html:not(.dark) .glass-card {
-            background: rgba(255, 255, 255, 0.92);
-        }
-        .tab-active {
-            background: linear-gradient(135deg, #10b981 0%, #0d9488 100%);
-            color: white !important;
-            box-shadow: 0 4px 14px -2px rgba(16, 185, 129, 0.35);
-        }
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(6px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        .animate-fade-in {
-            animation: fadeIn 0.22s ease-out forwards;
-        }
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    background-color: var(--bg) !important;
+    background-image: radial-gradient(ellipse 80% 50% at 50% -15%, rgba(255, 255, 255, 0.06), transparent) !important;
+    background-attachment: fixed;
+    color: var(--text) !important;
+    -webkit-tap-highlight-color: transparent;
+    letter-spacing: -0.018em;
+    position: relative;
+}
+
+body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    width: 100vw;
+    height: 100vh;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.002'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 9999;
+}
+
+/* Números alinhados com precisão bancária */
+h2, strong, [id^="kpi"], [id^="listTotal"], [id^="cardSummary"], [id^="vaultSum"] {
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.03em;
+}
+
+/* Remove o arco-íris que o script.js injeta via classes nos KPIs e listas */
+#kpiIncome, #kpiFixed, #kpiSporadic, #kpiCard,
+#listTotalIncome, #listTotalFixed, #listTotalGrocery, #listTotalSporadic {
+    color: var(--text) !important;
+}
+
+/* Deixa os botões de perfil gerados pelo JS mais discretos e minimalistas */
+#quickProfileSwitcher button {
+    border-radius: 8px !important;
+    padding: 5px 10px !important;
+    font-weight: 600 !important;
+}
+
+/* Abas estilo Linear/Vercel (linha fina ativa em vez de botão pintado) */
+.tab-active {
+    background: var(--text) !important;
+    color: var(--bg) !important;
+    box-shadow: none !important;
+}
+.tab-active i, .tab-active span {
+    color: var(--bg) !important;
+}
+
+/* Inputs limpos e confortáveis para toque no Galaxy A56 */
+input[type="text"],
+input[type="number"],
+input[type="date"],
+input[type="password"],
+select {
+    background-color: var(--bg) !important;
+    border: 1px solid var(--border) !important;
+    color: var(--text) !important;
+    border-radius: 8px !important;
+    height: 42px;
+    font-size: 14px !important;
+}
+
+input:focus, select:focus {
+    border-color: var(--text) !important;
+    outline: none !important;
+    box-shadow: none !important;
+}
+
+/* Gaveta/Modal de Lançamento (Escondida por padrão, abre ao clicar em + Lançar) */
+.drawer-backdrop {
+    display: none;
+}
+.drawer-backdrop.open {
+    display: flex;
+}
+
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 99px; }

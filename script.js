@@ -107,8 +107,9 @@ let pendingDeleteTx = null;
 
 const FLOW_CATEGORIES = {
     income: ['Salário / Estágio', 'Freelas & Projetos', 'Rendimentos Extras', 'Reembolsos / Aluguéis', '13º / Férias / Bônus', 'Outras Entradas'],
-    fixed: ['Moradia / Condomínio / IPTU', 'Luz, Água & Gás', 'Internet & Celular', 'Saúde & Remédios Fixos', 'Educação & Cursos', 'Seguro / IPVA / Taxas', 'Outras Contas Fixas'],
-    sporadic: ['Supermercado & Padaria (PIX/Débito)', 'Combustível & Manutenção', 'Delivery, Lanches & Saídas', 'Farmácia & Saúde Avulsa', 'Pets & Casa', 'Presentes & Vestuário', 'Imprevistos & Outros']
+    fixed: ['Moradia / Condomínio / IPTU', 'Supermercado (Fatura Dia 10)', 'Luz, Água & Gás', 'Internet & Celular', 'Saúde & Remédios Fixos', 'Educação & Cursos', 'Seguro / IPVA / Taxas', 'Outras Contas Fixas'],
+    grocery: ['Compra do Mês / Rancho', 'Reposição da Semana', 'Açougue & Carnes', 'Hortifruti & Feira', 'Padaria & Lanches', ' Atacadão / Zaffari / Outros'],
+    sporadic: ['Combustível & Manutenção', 'Delivery, Lanches & Saídas', 'Farmácia & Saúde Avulsa', 'Pets & Casa', 'Presentes & Vestuário', 'Imprevistos & Outros']
 };
 
 let db = null;
@@ -397,20 +398,35 @@ function renderKPIsAndFlow() {
     const profTxs = appState.transactions.filter(t => t.profileId === profId);
     const periodTxs = profTxs.filter(t => isDateInActivePeriod(t.date));
 
+   // 1. Rendimentos (Só conta como recebido o que estiver marcado no checkbox)
     const incomes = periodTxs.filter(t => t.type === 'income');
     const totalIncome = incomes.reduce((acc, t) => acc + Number(t.amount || 0), 0);
+    const incomeReceived = incomes.filter(t => t.paid).reduce((acc, t) => acc + Number(t.amount || 0), 0);
+    const incomePending = Math.max(0, totalIncome - incomeReceived);
 
+    // 2. Contas Fixas (Pago vs Pendente)
     const fixedList = periodTxs.filter(t => t.type === 'fixed');
     const totalFixed = fixedList.reduce((acc, t) => acc + Number(t.amount || 0), 0);
     const fixedPaid = fixedList.filter(t => t.paid).reduce((acc, t) => acc + Number(t.amount || 0), 0);
     const fixedPending = Math.max(0, totalFixed - fixedPaid);
 
+    // 3. Supermercado + Gastos Esporádicos (Considera apenas os marcados como pagos no saldo real)
+    const groceryList = periodTxs.filter(t => t.type === 'grocery');
+    const totalGrocery = groceryList.reduce((acc, t) => acc + Number(t.amount || 0), 0);
+    const groceryPaid = groceryList.filter(t => t.paid).reduce((acc, t) => acc + Number(t.amount || 0), 0);
+
     const sporadicList = periodTxs.filter(t => t.type === 'sporadic');
     const totalSporadic = sporadicList.reduce((acc, t) => acc + Number(t.amount || 0), 0);
+    const sporadicPaid = sporadicList.filter(t => t.paid).reduce((acc, t) => acc + Number(t.amount || 0), 0);
 
+    const totalVariableOutflows = totalSporadic + totalGrocery;
+    const variablePaid = groceryPaid + sporadicPaid;
+
+    // 4. Cartão de Crédito
     const cardItems = getCreditCardItemsForActivePeriod(profTxs);
     const totalCard = cardItems.reduce((acc, t) => acc + Number(t.amount || 0), 0);
 
+    // 5. Cofrinhos
     const cdiRate = Number(document.getElementById('globalCdiRate').value) || 11.15;
     const simDate = document.getElementById('globalSimDate').value || '2026-11-04';
     const profVaults = appState.vaults.filter(v => v.profileId === profId);
@@ -419,18 +435,19 @@ function renderKPIsAndFlow() {
         return acc + calc.netTotalWithIof;
     }, 0);
 
-    const totalAllOutflows = totalFixed + totalSporadic + totalCard;
-    const netBalance = totalIncome - totalAllOutflows;
-    const commitPct = totalIncome > 0 ? Math.min(100, Math.round((totalAllOutflows / totalIncome) * 100)) : 0;
+    // Balanço Real deste Mês: apenas Entradas Recebidas (marcadas) menos Saídas Pagas (marcadas)
+    const totalPaidOutflows = fixedPaid + variablePaid + totalCard;
+    const netBalance = incomeReceived - totalPaidOutflows;
+    const commitPct = incomeReceived > 0 ? Math.min(100, Math.round((totalPaidOutflows / incomeReceived) * 100)) : 0;
 
-    document.getElementById('kpiIncome').textContent = formatBRL(totalIncome);
-    document.getElementById('kpiIncomeCount').textContent = `${incomes.length} entrada(s) no período`;
+    document.getElementById('kpiIncome').textContent = formatBRL(incomeReceived);
+    document.getElementById('kpiIncomeCount').textContent = `Receb: ${formatBRL(incomeReceived)} | Pend: ${formatBRL(incomePending)}`;
 
-    document.getElementById('kpiFixed').textContent = formatBRL(totalFixed);
+    document.getElementById('kpiFixed').textContent = formatBRL(fixedPaid);
     document.getElementById('kpiFixedSub').textContent = `Pago: ${formatBRL(fixedPaid)} | Pend: ${formatBRL(fixedPending)}`;
 
-    document.getElementById('kpiSporadic').textContent = formatBRL(totalSporadic);
-    document.getElementById('kpiSporadicSub').textContent = `${sporadicList.length} gasto(s) no PIX/Déb`;
+    document.getElementById('kpiSporadic').textContent = formatBRL(variablePaid);
+    document.getElementById('kpiSporadicSub').textContent = `Mercado: ${formatBRL(groceryPaid)} | Outros: ${formatBRL(sporadicPaid)}`;
 
     document.getElementById('kpiCard').textContent = formatBRL(totalCard);
     document.getElementById('kpiCardSub').textContent = `${cardItems.length} compra(s) na fatura`;
@@ -438,9 +455,9 @@ function renderKPIsAndFlow() {
 
     const netEl = document.getElementById('kpiNetBalance');
     netEl.textContent = formatBRL(netBalance);
-    netEl.className = `text-xl font-extrabold mt-2 ${netBalance >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-500'}`;
+    netEl.className = `text-xl font-bold mt-0.5 ${netBalance >= 0 ? 'text-emerald-500' : 'text-rose-500'}`;
     document.getElementById('kpiVaultTotal').textContent = `Cofrinhos: ${formatBRL(totalVaultNet)}`;
-    document.getElementById('kpiCommitBadge').textContent = `${commitPct}% da renda`;
+    document.getElementById('kpiCommitBadge').textContent = `${commitPct}% da renda recebida`;
 
     // 6. Cálculo do Saldo Acumulado em Conta (Histórico total até o fim do mês/período selecionado)
     const lastDayOfViewMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
@@ -464,9 +481,13 @@ function renderKPIsAndFlow() {
             }
         } else if (t.date <= cutoffDate) {
             if (t.type === 'income') {
-                cumulativeIncome += Number(t.amount || 0);
-            } else {
+                // Só entra no Saldo em Conta se o checkbox estiver marcado (Recebido)
+                if (t.paid) cumulativeIncome += Number(t.amount || 0);
+            } else if (t.type === 'credit_card') {
                 cumulativeOutflows += Number(t.amount || 0);
+            } else {
+                // Contas fixas, mercado e avulsos só descontam do Saldo em Conta quando marcados como Pagos
+                if (t.paid) cumulativeOutflows += Number(t.amount || 0);
             }
         }
     });
@@ -484,10 +505,13 @@ function renderKPIsAndFlow() {
 
     document.getElementById('listTotalIncome').textContent = formatBRL(totalIncome);
     document.getElementById('listTotalFixed').textContent = formatBRL(totalFixed);
+    document.getElementById('listTotalGrocery').textContent = formatBRL(totalGrocery);
+    document.getElementById('groceryVisitsBadge').textContent = `${groceryList.length} compra(s)`;
     document.getElementById('listTotalSporadic').textContent = formatBRL(totalSporadic);
 
     renderFlowList('incomeListContainer', incomes, 'emerald', 'Nenhum rendimento cadastrado neste período.');
     renderFlowList('fixedListContainer', fixedList, 'blue', 'Nenhuma conta fixa lançada neste período.');
+    renderFlowList('groceryListContainer', groceryList, 'amber', 'Nenhuma compra de supermercado registrada neste mês.');
     renderFlowList('sporadicListContainer', sporadicList, 'cyan', 'Nenhum gasto esporádico registrado neste período.');
 }
 
@@ -498,7 +522,9 @@ function renderFlowList(containerId, items, colorName, emptyMsg) {
         return;
     }
     const sorted = [...items].sort((a, b) => b.date.localeCompare(a.date));
-    container.innerHTML = sorted.map(item => `
+    container.innerHTML = sorted.map(item => {
+        const isOpenValue = !item.amount || Number(item.amount) === 0;
+        return `
         <div class="py-3 flex items-center justify-between gap-3 group">
             <div class="flex items-center gap-3 min-w-0">
                 <button onclick="toggleFlowPaid('${item.id}')" title="Alternar Pago / Pendente"
@@ -509,29 +535,66 @@ function renderFlowList(containerId, items, colorName, emptyMsg) {
                     <div class="flex items-center gap-2 flex-wrap">
                         <p class="text-xs sm:text-sm font-bold truncate ${!item.paid && item.type !== 'income' ? 'text-amber-500' : ''}">${item.desc}</p>
                         <span class="text-[10px] px-2 py-0.5 rounded-full bg-slate-200/80 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-semibold">${item.category}</span>
-                        ${!item.paid ? '<span class="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-500 font-bold">Pendente</span>' : ''}
+                        ${isOpenValue ? '<span class="text-[10px] px-1.5 py-0.5 rounded bg-blue-500/15 text-blue-400 font-bold">Valor em aberto</span>' : (!item.paid ? '<span class="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-500 font-bold">Pendente</span>' : '')}
                     </div>
-                    <p class="text-[11px] text-slate-400 mt-0.5">${formatDateBR(item.date)}</p>
+                    <p class="text-[11px] text-slate-400 mt-0.5">Vencimento/Data: ${formatDateBR(item.date)}</p>
                 </div>
             </div>
-            <div class="flex items-center gap-3 shrink-0">
-                <span class="text-xs sm:text-sm font-extrabold ${item.type === 'income' ? 'text-emerald-500' : 'text-slate-800 dark:text-slate-100'}">
-                    ${item.type === 'income' ? '+' : '-'} ${formatBRL(item.amount)}
-                </span>
+            <div class="flex items-center gap-2 shrink-0">
+                ${isOpenValue ? `
+                    <button onclick="editFlowAmount('${item.id}')" class="px-2.5 py-1 rounded-lg bg-blue-500/15 hover:bg-blue-500/25 text-blue-500 border border-blue-500/30 text-xs font-extrabold flex items-center gap-1 transition">
+                        <i data-lucide="pencil" class="w-3 h-3"></i> Definir Valor
+                    </button>
+                ` : `
+                    <button onclick="editFlowAmount('${item.id}')" class="text-xs sm:text-sm font-extrabold hover:underline flex items-center gap-1 ${item.type === 'income' ? 'text-emerald-500' : 'text-slate-800 dark:text-slate-100'}" title="Clique para alterar o valor">
+                        <span>${item.type === 'income' ? '+' : '-'} ${formatBRL(item.amount)}</span>
+                        <i data-lucide="pencil" class="w-3 h-3 text-slate-400 opacity-60"></i>
+                    </button>
+                `}
                 <button onclick="deleteTransaction('${item.id}')" class="p-1.5 rounded-lg text-slate-400 hover:text-rose-500 hover:bg-rose-500/10 transition" title="Excluir">
                     <i data-lucide="trash-2" class="w-4 h-4"></i>
                 </button>
             </div>
         </div>
-    `).join('');
+    `}).join('');
 }
+
+window.editFlowAmount = function(txId) {
+    const tx = appState.transactions.find(t => t.id === txId);
+    if (!tx) return;
+
+    const currentVal = tx.amount > 0 ? String(tx.amount).replace('.', ',') : '';
+    const input = prompt(`Qual o valor fechado para "${tx.desc}" (${formatDateBR(tx.date)})?`, currentVal);
+    if (input === null) return; // Cancelou
+
+    const parsed = parseFloat(input.replace(',', '.'));
+    if (isNaN(parsed) || parsed < 0) {
+        showToast("Digite um valor válido.");
+        return;
+    }
+
+    tx.amount = parsed;
+    saveStateToCloud();
+    showToast(`Valor de "${tx.desc}" atualizado para ${formatBRL(parsed)}!`);
+};
 
 window.toggleFlowPaid = function(txId) {
     const tx = appState.transactions.find(t => t.id === txId);
-    if (tx) {
-        tx.paid = !tx.paid;
-        saveStateToCloud();
+    if (!tx) return;
+
+    // Se a conta estava com valor em aberto (0) e você clicou no check de Pago, ele já pergunta o valor na hora!
+    if (!tx.paid && (!tx.amount || Number(tx.amount) === 0)) {
+        const input = prompt(`Antes de marcar como pago, qual foi o valor de "${tx.desc}" neste mês?`, '');
+        if (input !== null && input.trim() !== '') {
+            const parsed = parseFloat(input.replace(',', '.'));
+            if (!isNaN(parsed) && parsed >= 0) {
+                tx.amount = parsed;
+            }
+        }
     }
+
+    tx.paid = !tx.paid;
+    saveStateToCloud();
 };
 
 // ---------------------------------------------------------
@@ -974,6 +1037,8 @@ function initApp() {
                 btn.className = 'flow-type-btn py-2 px-2 rounded-xl border text-center text-xs font-bold transition border-emerald-500 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400';
             } else if (t === 'fixed') {
                 btn.className = 'flow-type-btn py-2 px-2 rounded-xl border text-center text-xs font-bold transition border-blue-500 bg-blue-500/10 text-blue-600 dark:text-blue-400';
+            } else if (t === 'grocery') {
+                btn.className = 'flow-type-btn py-2 px-2 rounded-xl border text-center text-xs font-bold transition border-amber-500 bg-amber-500/10 text-amber-600 dark:text-amber-400';
             } else {
                 btn.className = 'flow-type-btn py-2 px-2 rounded-xl border text-center text-xs font-bold transition border-cyan-500 bg-cyan-500/10 text-cyan-600 dark:text-cyan-400';
             }
@@ -981,6 +1046,7 @@ function initApp() {
         });
     });
 
+   // Submit Fluxo (Aba 1) - Substitua o trecho inicial dentro do listener por este:
     document.getElementById('flowForm').addEventListener('submit', (e) => {
         e.preventDefault();
         if (!appState.activeProfileId) {
@@ -989,13 +1055,14 @@ function initApp() {
         }
         const type = document.getElementById('flowTypeInput').value;
         const desc = document.getElementById('flowDesc').value.trim();
-        const amount = parseFloat(document.getElementById('flowAmount').value);
+        const rawAmount = document.getElementById('flowAmount').value;
+        const amount = rawAmount === '' ? 0 : parseFloat(rawAmount);
         const date = document.getElementById('flowDate').value;
         const category = document.getElementById('flowCategory').value;
         const paid = document.getElementById('flowPaid').checked;
         const repeatCount = type === 'fixed' ? (parseInt(document.getElementById('flowRepeatMonths').value) || 1) : 1;
 
-        if (!desc || isNaN(amount) || !date) return;
+        if (!desc || isNaN(amount) || amount < 0 || !date) return;
 
         for (let i = 0; i < repeatCount; i++) {
             const targetDate = addMonthsToDateStr(date, i);
@@ -1007,7 +1074,8 @@ function initApp() {
                 amount,
                 date: targetDate,
                 category,
-                paid: i === 0 ? paid : false
+                // Se o valor estiver em aberto (0), fica automaticamente como Pendente (false)
+                paid: (i === 0 && amount > 0) ? paid : false
             });
         }
 
