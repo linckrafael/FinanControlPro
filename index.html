@@ -86,44 +86,49 @@
     </div>
 
     <!-- HEADER MINIMALISTA -->
+    <!-- HEADER MINIMALISTA RESPONSIVO (360px+) -->
     <header class="sticky top-0 z-30 bg-[#fafafa]/90 dark:bg-[#0a0a0c]/90 backdrop-blur-md border-b border-zinc-200 dark:border-zinc-800/80">
-        <div class="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between gap-2">
-            <!-- Esquerda: Nome discreto + Seletor de Mês direto no topo -->
-            <div class="flex items-center gap-3">
-                <div id="monthModeSelector" class="flex items-center gap-1 bg-zinc-100 dark:bg-[#111114] border border-zinc-200 dark:border-zinc-800 rounded-lg px-1.5 py-1">
+        <div class="max-w-4xl mx-auto px-3 sm:px-4 py-2.5 flex flex-wrap items-center justify-between gap-y-2 gap-x-1.5">
+            <!-- Esquerda: Seletor de Mês compacto no mobile -->
+            <div class="flex items-center gap-1.5">
+                <div id="monthModeSelector" class="flex items-center bg-zinc-100 dark:bg-[#111114] border border-zinc-200 dark:border-zinc-800 rounded-lg px-1 py-1">
                     <button id="prevMonthBtn" class="p-1 text-zinc-500 hover:text-zinc-900 dark:hover:text-white"><i data-lucide="chevron-left" class="w-4 h-4"></i></button>
-                    <span id="currentMonthLabel" class="text-xs font-semibold capitalize px-2 min-w-[115px] text-center">Novembro 2026</span>
+                    <span id="currentMonthLabel" class="text-[11px] sm:text-xs font-semibold capitalize px-1 sm:px-2 text-center whitespace-nowrap">Novembro 2026</span>
                     <button id="nextMonthBtn" class="p-1 text-zinc-500 hover:text-zinc-900 dark:hover:text-white"><i data-lucide="chevron-right" class="w-4 h-4"></i></button>
                 </div>
 
-                <button id="toggleCustomRangeBtn" class="p-2 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-100 dark:bg-[#111114] text-zinc-500 hover:text-zinc-900 dark:hover:text-white" title="Período Específico">
+                <button id="toggleCustomRangeBtn" class="p-1.5 sm:p-2 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-100 dark:bg-[#111114] text-zinc-500 hover:text-zinc-900 dark:hover:text-white shrink-0" title="Período Específico">
                     <i data-lucide="calendar" class="w-4 h-4"></i>
                     <span id="customRangeBtnText" class="sr-only">Período</span>
                 </button>
             </div>
 
-            <!-- Direita: Perfil + Utilidades -->
-            <div class="flex items-center gap-1.5">
-                <div id="quickProfileSwitcher" class="hidden sm:hidden items-center gap-1"></div>
-                <button id="openProfileModalBtn" class="px-2.5 py-1.5 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-100 dark:bg-[#111114] text-xs font-semibold flex items-center gap-1.5">
-                    <span id="activeProfileDot" class="w-2 h-2 rounded-full bg-emerald-500"></span>
-                    <strong id="activeProfileNameBanner" class="font-semibold max-w-[90px] truncate">Perfil</strong>
-                    <i data-lucide="chevron-down" class="w-3.5 h-3.5 text-zinc-400"></i>
+            <!-- Direita: Perfil + Botões de Ação Compactos -->
+            <div class="flex items-center gap-0.5 sm:gap-1.5 ml-auto">
+                <div id="quickProfileSwitcher" class="hidden"></div>
+                <button id="openProfileModalBtn" class="px-2 py-1.5 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-100 dark:bg-[#111114] text-xs font-semibold flex items-center gap-1 shrink-0">
+                    <span id="activeProfileDot" class="w-2 h-2 rounded-full bg-emerald-500 shrink-0"></span>
+                    <strong id="activeProfileNameBanner" class="font-semibold max-w-[68px] sm:max-w-[110px] truncate">Perfil</strong>
+                    <i data-lucide="chevron-down" class="w-3 h-3 text-zinc-400 shrink-0"></i>
                 </button>
 
-                <button id="exportJsonBtn" class="p-2 rounded-lg text-zinc-400 hover:text-zinc-900 dark:hover:text-white" title="Exportar Backup"><i data-lucide="download" class="w-4 h-4"></i></button>
-                <label class="p-2 rounded-lg text-zinc-400 hover:text-zinc-900 dark:hover:text-white cursor-pointer" title="Importar Backup">
+                <button id="privacyToggleBtn" class="p-1.5 sm:p-2 rounded-lg text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition" title="Ocultar / Mostrar Valores">
+                    <i id="privacyIconOpen" data-lucide="eye" class="w-4 h-4"></i>
+                    <i id="privacyIconClosed" data-lucide="eye-off" class="w-4 h-4 hidden text-emerald-500"></i>
+                </button>
+                <button id="exportJsonBtn" class="p-1.5 sm:p-2 rounded-lg text-zinc-400 hover:text-zinc-900 dark:hover:text-white" title="Exportar Backup"><i data-lucide="download" class="w-4 h-4"></i></button>
+                <label class="p-1.5 sm:p-2 rounded-lg text-zinc-400 hover:text-zinc-900 dark:hover:text-white cursor-pointer" title="Importar Backup">
                     <i data-lucide="upload" class="w-4 h-4"></i>
                     <input type="file" id="importJsonInput" accept=".json" class="hidden">
                 </label>
-                <button id="themeToggleBtn" class="p-2 rounded-lg text-zinc-400 hover:text-zinc-900 dark:hover:text-white">
+                <button id="themeToggleBtn" class="p-1.5 sm:p-2 rounded-lg text-zinc-400 hover:text-zinc-900 dark:hover:text-white">
                     <i data-lucide="sun" class="w-4 h-4 hidden dark:block"></i>
                     <i data-lucide="moon" class="w-4 h-4 block dark:hidden"></i>
                 </button>
             </div>
         </div>
 
-        <!-- Barra de Período Personalizado (Só aparece se clicar no calendário) -->
+        <!-- Barra de Período Personalizado -->
         <div id="customRangeInputs" class="hidden max-w-4xl mx-auto px-4 pb-3 flex-wrap items-center gap-2 text-xs">
             <span class="text-zinc-400">De:</span>
             <input type="date" id="filterStartDate" class="px-2 py-1">
@@ -132,7 +137,6 @@
             <button id="clearCustomRangeBtn" class="text-xs text-rose-500 font-medium ml-2">Fechar filtro</button>
         </div>
 
-        <!-- Elementos ocultos de compatibilidade com script.js -->
         <span id="syncStatusBadge" class="hidden"></span>
         <span id="activePeriodBanner" class="hidden"></span>
     </header>

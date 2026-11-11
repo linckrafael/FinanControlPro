@@ -177,7 +177,25 @@ async function saveStateToCloud() {
 // ---------------------------------------------------------
 // 3. UTILITÁRIOS E FORMATAÇÃO
 // ---------------------------------------------------------
+// Lê imediatamente se o usuário deixou o olho fechado da última vez
+let isPrivacyMode = localStorage.getItem('financontrol_privacy_mode') === 'true';
+
+function updatePrivacyButtonUI() {
+    const iconOpen = document.getElementById('privacyIconOpen');
+    const iconClosed = document.getElementById('privacyIconClosed');
+    if (!iconOpen || !iconClosed) return;
+
+    if (isPrivacyMode) {
+        iconOpen.classList.add('hidden');
+        iconClosed.classList.remove('hidden');
+    } else {
+        iconOpen.classList.remove('hidden');
+        iconClosed.classList.add('hidden');
+    }
+}
+
 function formatBRL(val) {
+    if (isPrivacyMode) return 'R$ \u00A0••••';
     const num = Number(val) || 0;
     return num.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 }
@@ -988,6 +1006,14 @@ function initApp() {
 
     document.getElementById('themeToggleBtn').addEventListener('click', () => {
         document.documentElement.classList.toggle('dark');
+    });
+    // Inicializa o ícone do olho conforme estava salvo e escuta o clique
+    updatePrivacyButtonUI();
+    document.getElementById('privacyToggleBtn')?.addEventListener('click', () => {
+        isPrivacyMode = !isPrivacyMode;
+        localStorage.setItem('financontrol_privacy_mode', isPrivacyMode);
+        updatePrivacyButtonUI();
+        renderAll();
     });
 
     document.getElementById('prevMonthBtn').addEventListener('click', () => {
