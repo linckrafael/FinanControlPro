@@ -92,7 +92,8 @@ let appState = {
     globalCdiRate: 11.15,
     profiles: [],
     transactions: [],
-    vaults: []
+    vaults: [],
+    marketItems: []
 };
 
 let currentTab = 'flow';
@@ -138,7 +139,8 @@ async function initPersistence() {
                         globalCdiRate: cloudData.globalCdiRate || 11.15,
                         profiles: cloudData.profiles || [],
                         transactions: cloudData.transactions || [],
-                        vaults: cloudData.vaults || []
+                        vaults: cloudData.vaults || [],
+                        marketItems: cloudData.marketItems || []
                     };
                     const cdiInput = document.getElementById('globalCdiRate');
                     if (cdiInput) cdiInput.value = appState.globalCdiRate;
@@ -320,6 +322,7 @@ window.deleteProfileById = function(event, profileId) {
     appState.profiles = appState.profiles.filter(p => p.id !== profileId);
     appState.transactions = appState.transactions.filter(t => t.profileId !== profileId);
     appState.vaults = appState.vaults.filter(v => v.profileId !== profileId);
+    appState.marketItems = (appState.marketItems || []).filter(m => m.profileId !== profileId);
 
     if (appState.activeProfileId === profileId) {
         appState.activeProfileId = appState.profiles[0]?.id ?? null;
@@ -870,6 +873,202 @@ function updateLiveVaultFormPreview() {
 }
 
 // ---------------------------------------------------------
+// 7B. ABA 4: MERCADO, FREQUÊNCIA & REPOSIÇÃO INTELIGENTE
+// ---------------------------------------------------------
+function normalizeItemKey(name) {
+    return (name || '').trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+}
+
+window.addMarketItemRow = function(defaultName = '', defaultPrice = '', defaultCycle = '') {
+    const container = document.getElementById('marketItemsRowsContainer');
+    if (!container) return;
+    const row = document.createElement('div');
+    row.className = 'market-item-row grid grid-cols-12 gap-1.5 items-center';
+    row.innerHTML = `
+        <input type="text" list="knownMarketItemsList" placeholder="Item (ex: Café, Leite)" value="${defaultName}" required
+            class="market-item-name col-span-6 px-2.5 text-xs">
+        <input type="number" step="0.01" min="0" placeholder="R$ Valor" value="${defaultPrice}" required
+            oninput="updateMarketModalLiveTotal()" class="market-item-price col-span-3 px-2 text-xs font-bold">
+        <input type="number" min="1" max="365" placeholder="Dias dura" value="${defaultCycle}" title="Duração estimada em dias (opcional se já comprou mais de 1 vez)"
+            class="market-item-cycle col-span-2 px-1.5 text-xs text-center">
+        <button type="button" onclick="this.parentElement.remove(); updateMarketModalLiveTotal();" class="col-span-1 p-1.5 text-zinc-400 hover:text-rose-500 flex justify-center">
+            <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+        </button>
+    `;
+    container.appendChild(row);
+    if (window.lucide) window.lucide.createIcons();
+    updateMarketModalLiveTotal();
+};
+
+window.updateMarketModalLiveTotal = function() {
+    const prices = document.querySelectorAll('.market-item-price');
+    let sum = 0;
+    prices.forEach(inp => { sum += parseFloat(inp.value) || 0; });
+    const el = document.getElementById('marketModalLiveTotal');
+    if (el) el.textContent = formatBRL(sum);
+};
+
+window.quickRestockItem = function(itemName, lastPrice, avgDays) {
+    const container = document.getElementById('marketItemsRowsContainer');
+    // Se só tiver 1 linha em branco, limpa para preencher com o item clicado
+    const rows = container.querySelectorAll('.market-item-row');
+    if (rows.length === 1 && !rows[0].querySelector('.market-item-name').value) {
+        container.innerHTML = '';
+    }
+    window.addMarketItemRow(itemName, lastPrice > 0 ? lastPrice : '', avgDays || '');
+    document.getElementById('drawer-market').classList.add('open');
+};
+
+window.deleteMarketItemEntry = function(entryId) {
+    appState.marketItems = (appState.marketItems || []).filter(m => m.id !== entryId);
+    saveStateToCloud();
+    showToast("Item removido do histórico.");
+};
+
+function renderMarketTab() {
+    const profId = appState.activeProfileId;
+    const allItems = (appState.marketItems || []).filter(m => m.profileId === profId);
+    const searchQuery = normalizeItemKey(document.getElementById('marketSearchInput')?.value || '');
+
+    // Agrupa compras por produto (ex: todas as vezes que comprou "Arroz")
+    const productGroups = {};
+    allItems.forEach(item => {
+        const key = normalizeItemKey(item.name);
+        if (!key) return;
+        if (!productGroups[key]) {
+            productGroups[key] = { displayName: item.name.trim(), history: [] };
+        }
+        productGroups[key].history.push(item);
+    });
+
+    // Atualiza o <datalist> do formulário para autocompletar nomes já usados
+    const datalist = document.getElementById('knownMarketItemsList');
+    if (datalist) {
+        datalist.innerHTML = Object.values(productGroups)
+            .map(g => `<option value="${g.displayName}">`).join('');
+    }
+
+    const todayMs = new Date(new Date().toISOString().slice(0, 10) + "T00:00:00").getTime();
+    let alertCount = 0;
+
+    // Calcula estatísticas de frequência e previsão de término para cada produto
+    const analyzedProducts = Object.values(productGroups).map(group => {
+        // Ordena da compra mais antiga para a mais recente
+        const sorted = [...group.history].sort((a, b) => a.date.localeCompare(b.date));
+        const lastPurchase = sorted[sorted.length - 1];
+        const lastDateMs = new Date(lastPurchase.date + "T00:00:00").getTime();
+        const daysSinceLast = Math.max(0, Math.floor((todayMs - lastDateMs) / 86400000));
+
+        // Calcula o intervalo médio em dias se comprou 2+ vezes em datas diferentes
+        let avgCycleDays = Number(lastPurchase.manualCycleDays) || 30;
+        let isAutoCalculated = false;
+
+        const uniqueDates = [...new Set(sorted.map(s => s.date))];
+        if (uniqueDates.length >= 2) {
+            const firstMs = new Date(uniqueDates[0] + "T00:00:00").getTime();
+            const latestMs = new Date(uniqueDates[uniqueDates.length - 1] + "T00:00:00").getTime();
+            const totalSpanDays = Math.max(1, Math.round((latestMs - firstMs) / 86400000));
+            avgCycleDays = Math.max(1, Math.round(totalSpanDays / (uniqueDates.length - 1)));
+            isAutoCalculated = true;
+        }
+
+        const daysRemaining = avgCycleDays - daysSinceLast;
+        const pctUsed = Math.min(100, Math.round((daysSinceLast / avgCycleDays) * 100));
+
+        // Status: 0 = Provavelmente acabou, 1 = Acabando (80%+ do tempo), 2 = Em dia
+        let statusOrder = 2;
+        if (daysRemaining <= 0) {
+            statusOrder = 0;
+            alertCount++;
+        } else if (pctUsed >= 80 || daysRemaining <= 3) {
+            statusOrder = 1;
+            alertCount++;
+        }
+
+        return {
+            displayName: group.displayName,
+            count: sorted.length,
+            lastPurchase,
+            daysSinceLast,
+            avgCycleDays,
+            isAutoCalculated,
+            daysRemaining,
+            pctUsed,
+            statusOrder
+        };
+    }).filter(p => !searchQuery || normalizeItemKey(p.displayName).includes(searchQuery));
+
+    // Ordena: primeiro os que já acabaram / estão acabando, depois os mais próximos de vencer
+    analyzedProducts.sort((a, b) => (a.statusOrder - b.statusOrder) || (a.daysRemaining - b.daysRemaining));
+
+    const alertBadge = document.getElementById('navMarketAlertBadge');
+    if (alertBadge) alertBadge.classList.toggle('hidden', alertCount === 0);
+
+    const restockContainer = document.getElementById('marketRestockListContainer');
+    if (analyzedProducts.length === 0) {
+        restockContainer.innerHTML = `<p class="text-xs text-zinc-400 py-6 text-center">Nenhum item de mercado registrado ainda. Clique em "+ Lançar" para cadastrar suas compras.</p>`;
+    } else {
+        restockContainer.innerHTML = analyzedProducts.map(p => {
+            let statusBadge = '';
+            if (p.statusOrder === 0) {
+                statusBadge = `<span class="text-[10px] px-2 py-0.5 rounded bg-rose-500/15 text-rose-500 font-bold">⚠️ Deve ter acabado (há ${ Math.abs(p.daysRemaining) }d)</span>`;
+            } else if (p.statusOrder === 1) {
+                statusBadge = `<span class="text-[10px] px-2 py-0.5 rounded bg-amber-500/15 text-amber-500 font-bold">⏳ Acabando (~${p.daysRemaining}d restantes)</span>`;
+            } else {
+                statusBadge = `<span class="text-[10px] px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-500 font-bold">Em estoque (~${p.daysRemaining}d)</span>`;
+            }
+
+            return `
+                <div class="py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <div class="min-w-0">
+                        <div class="flex items-center gap-2 flex-wrap">
+                            <strong class="text-xs sm:text-sm font-bold">${p.displayName}</strong>
+                            ${statusBadge}
+                            <span class="text-[10px] px-2 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-zinc-400">
+                                Ciclo: a cada <strong>${p.avgCycleDays} dias</strong> ${p.isAutoCalculated ? `(${p.count} compras)` : '(estimado)'}
+                            </span>
+                        </div>
+                        <p class="text-[11px] text-zinc-400 mt-1">
+                            Última compra: <strong>${formatDateBR(p.lastPurchase.date)}</strong> (há ${p.daysSinceLast} dias) • Último preço: <strong>${formatBRL(p.lastPurchase.price)}</strong>
+                        </p>
+                    </div>
+                    <div class="flex items-center gap-2 shrink-0">
+                        <button onclick="quickRestockItem('${p.displayName.replace(/'/g, "\\'")}', ${p.lastPurchase.price}, ${p.avgCycleDays})"
+                            class="px-2.5 py-1 rounded-lg bg-zinc-100 dark:bg-zinc-800 hover:bg-emerald-500/20 hover:text-emerald-400 text-xs font-bold transition">
+                            + Comprar de novo
+                        </button>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    // Painel 2: Histórico cronológico de todos os itens comprados
+    const historyContainer = document.getElementById('marketTripsHistoryContainer');
+    document.getElementById('marketHistoryCountBadge').textContent = `${allItems.length} item(ns)`;
+
+    if (allItems.length === 0) {
+        historyContainer.innerHTML = `<p class="text-xs text-zinc-400 py-4 text-center">Nenhum histórico de itens disponível.</p>`;
+    } else {
+        const sortedHistory = [...allItems].sort((a, b) => b.date.localeCompare(a.date));
+        historyContainer.innerHTML = sortedHistory.map(item => `
+            <div class="py-2.5 flex items-center justify-between gap-2 text-xs">
+                <div>
+                    <span class="font-bold">${item.name}</span>
+                    <span class="text-zinc-400 ml-1.5">• ${item.store || 'Mercado'} em ${formatDateBR(item.date)}</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <strong class="font-bold">${formatBRL(item.price)}</strong>
+                    <button onclick="deleteMarketItemEntry('${item.id}')" class="p-1 text-zinc-400 hover:text-rose-500" title="Excluir item">
+                        <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                    </button>
+                </div>
+            </div>
+        `).join('');
+    }
+}
+
+// ---------------------------------------------------------
 // 8. EXCLUSÃO E NAVEGAÇÃO
 // ---------------------------------------------------------
 window.deleteTransaction = function(txId) {
@@ -900,7 +1099,7 @@ window.deleteVault = function(vaultId) {
 
 window.switchMainTab = function(tabName) {
     currentTab = tabName;
-    ['flow', 'card', 'investments'].forEach(t => {
+    ['flow', 'card', 'market', 'investments'].forEach(t => {
         const section = document.getElementById(`tabSection-${t}`);
         const btn = document.getElementById(`mainTab-${t}`);
         if (t === tabName) {
@@ -963,6 +1162,7 @@ function renderAll() {
     renderProfileSwitcherAndBanner();
     renderKPIsAndFlow();
     renderCreditCardTab();
+    renderMarketTab();
     renderInvestmentsTab();
     if (window.lucide) window.lucide.createIcons();
 }
@@ -1055,6 +1255,12 @@ function initApp() {
     document.querySelectorAll('.flow-type-btn').forEach(btn => {
         btn.addEventListener('click', () => {
             const t = btn.getAttribute('data-flowtype');
+            if (t === 'grocery') {
+                document.getElementById('drawer-flow')?.classList.remove('open');
+                window.switchMainTab('market');
+                document.getElementById('drawer-market')?.classList.add('open');
+                return;
+            }
             document.getElementById('flowTypeInput').value = t;
             document.querySelectorAll('.flow-type-btn').forEach(b => {
                 b.className = 'flow-type-btn py-2 px-2 rounded-xl border text-center text-xs font-bold transition border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800/60 text-slate-600 dark:text-slate-300';
@@ -1244,6 +1450,70 @@ function initApp() {
         showToast("Cofrinho adicionado com cálculo de IOF e IR!");
     });
 
+    // Inicialização da Aba 4 (Mercado)
+    document.getElementById('marketDate').value = todayISO;
+    window.addMarketItemRow();
+    document.getElementById('addMarketItemRowBtn')?.addEventListener('click', () => window.addMarketItemRow());
+    document.getElementById('marketSearchInput')?.addEventListener('input', renderMarketTab);
+
+    document.getElementById('marketForm')?.addEventListener('submit', (e) => {
+        e.preventDefault();
+        if (!appState.activeProfileId) {
+            checkOnboardingState();
+            return;
+        }
+        const store = document.getElementById('marketStore').value.trim() || 'Supermercado';
+        const date = document.getElementById('marketDate').value;
+        const syncToFlow = document.getElementById('marketSyncToFlow').checked;
+        const rows = document.querySelectorAll('.market-item-row');
+
+        if (!date || rows.length === 0) return;
+        if (!Array.isArray(appState.marketItems)) appState.marketItems = [];
+
+        let totalTripAmount = 0;
+        let addedCount = 0;
+
+        rows.forEach((row, idx) => {
+            const name = row.querySelector('.market-item-name').value.trim();
+            const price = parseFloat(row.querySelector('.market-item-price').value) || 0;
+            const cycle = parseInt(row.querySelector('.market-item-cycle').value) || 30;
+            if (!name) return;
+
+            totalTripAmount += price;
+            addedCount++;
+            appState.marketItems.push({
+                id: `mkt_${Date.now()}_${idx}`,
+                profileId: appState.activeProfileId,
+                name,
+                price,
+                date,
+                store,
+                manualCycleDays: cycle
+            });
+        });
+
+        if (addedCount === 0) return;
+
+        // Se marcado, já lança a compra fechada lá na lista de Supermercado do Extrato (Aba 1)
+        if (syncToFlow && totalTripAmount > 0) {
+            appState.transactions.push({
+                id: 'tx_mkt_' + Date.now(),
+                profileId: appState.activeProfileId,
+                type: 'grocery',
+                desc: `${store} (${addedCount} itens)`,
+                amount: Number(totalTripAmount.toFixed(2)),
+                date,
+                category: 'Reposição da Semana',
+                paid: true
+            });
+        }
+
+        document.getElementById('marketItemsRowsContainer').innerHTML = '';
+        window.addMarketItemRow();
+        saveStateToCloud();
+        showToast(`${addedCount} item(ns) registrados no Mercado!`);
+    });
+
     document.getElementById('openProfileModalBtn').addEventListener('click', () => {
         checkOnboardingState();
         renderProfileModalCards();
@@ -1293,6 +1563,12 @@ function initApp() {
             showToast(`Bem-vindo(a), ${target.name}!`);
         } else {
             document.getElementById('pinErrorMsg').classList.remove('hidden');
+        }
+    });
+    document.getElementById('pinVerifyInput').addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            document.getElementById('confirmPinBtn').click();
         }
     });
 

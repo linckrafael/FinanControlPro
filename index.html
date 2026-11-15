@@ -6,6 +6,8 @@
     <title>FinanControl</title>
     <meta name="theme-color" content="#0a0a0c">
     <meta name="mobile-web-app-capable" content="yes">
+    <link rel="icon" type="image/png" href="logo.png">
+    <link rel="apple-touch-icon" href="logo.png">
 
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -13,11 +15,17 @@
             darkMode: 'class',
             theme: {
                 extend: {
-                    fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] }
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', 'sans-serif'],
+                        logo: ['"Dancing Script"', 'cursive']
+                    }
                 }
             }
         }
     </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -88,12 +96,23 @@
     <!-- HEADER MINIMALISTA -->
     <!-- HEADER MINIMALISTA RESPONSIVO (360px+) -->
     <header class="sticky top-0 z-30 bg-[#fafafa]/90 dark:bg-[#0a0a0c]/90 backdrop-blur-md border-b border-zinc-200 dark:border-zinc-800/80">
-        <div class="max-w-4xl mx-auto px-3 sm:px-4 py-2.5 flex flex-wrap items-center justify-between gap-y-2 gap-x-1.5">
-            <!-- Esquerda: Seletor de Mês compacto no mobile -->
-            <div class="flex items-center gap-1.5">
+        <div class="max-w-4xl mx-auto px-3 sm:px-4 py-2.5 flex flex-wrap lg:flex-nowrap items-center justify-between gap-y-2.5 gap-x-2 relative">
+
+            <!-- 1. LOGO + NOME ESTILIZADO (Mobile: 1º item centralizado no topo | Desktop: Centralizado absoluto no meio do header) -->
+            <div class="order-1 w-full lg:w-auto flex items-center justify-center gap-2.5 lg:absolute lg:left-1/2 lg:-translate-x-1/2 lg:pointer-events-none">
+                <!-- Logo Oficial FinanControl Pro -->
+                <img src="logo.png" alt="FinanControl Pro" class="w-9 h-9 rounded-xl object-cover border border-emerald-500/30 shadow-[0_0_12px_rgba(16,185,129,0.3)] shrink-0">
+                <div class="flex items-baseline gap-1.5">
+                    <span class="font-logo text-2xl sm:text-[26px] font-bold tracking-wide text-zinc-900 dark:text-white leading-none">FinanControl</span>
+                    <span class="text-[10px] font-extrabold uppercase tracking-widest px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-500 border border-emerald-500/20">Pro</span>
+                </div>
+            </div>
+
+            <!-- 2. SELETOR DE MÊS E CALENDÁRIO (Mobile: 3ª linha centralizado abaixo | Desktop: Na esquerda) -->
+            <div class="order-3 lg:order-1 w-full lg:w-auto flex items-center justify-center lg:justify-start gap-1.5 pt-1 lg:pt-0 border-t lg:border-t-0 border-zinc-200/60 dark:border-zinc-800/60">
                 <div id="monthModeSelector" class="flex items-center bg-zinc-100 dark:bg-[#111114] border border-zinc-200 dark:border-zinc-800 rounded-lg px-1 py-1">
                     <button id="prevMonthBtn" class="p-1 text-zinc-500 hover:text-zinc-900 dark:hover:text-white"><i data-lucide="chevron-left" class="w-4 h-4"></i></button>
-                    <span id="currentMonthLabel" class="text-[11px] sm:text-xs font-semibold capitalize px-1 sm:px-2 text-center whitespace-nowrap">Novembro 2026</span>
+                    <span id="currentMonthLabel" class="text-[11px] sm:text-xs font-semibold capitalize px-2 text-center whitespace-nowrap">Novembro 2026</span>
                     <button id="nextMonthBtn" class="p-1 text-zinc-500 hover:text-zinc-900 dark:hover:text-white"><i data-lucide="chevron-right" class="w-4 h-4"></i></button>
                 </div>
 
@@ -103,29 +122,34 @@
                 </button>
             </div>
 
-            <!-- Direita: Perfil + Botões de Ação Compactos -->
-            <div class="flex items-center gap-0.5 sm:gap-1.5 ml-auto">
-                <div id="quickProfileSwitcher" class="hidden"></div>
-                <button id="openProfileModalBtn" class="px-2 py-1.5 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-100 dark:bg-[#111114] text-xs font-semibold flex items-center gap-1 shrink-0">
-                    <span id="activeProfileDot" class="w-2 h-2 rounded-full bg-emerald-500 shrink-0"></span>
-                    <strong id="activeProfileNameBanner" class="font-semibold max-w-[68px] sm:max-w-[110px] truncate">Perfil</strong>
-                    <i data-lucide="chevron-down" class="w-3 h-3 text-zinc-400 shrink-0"></i>
-                </button>
+            <!-- 3. FERRAMENTAS E PERFIL (Mobile: 2ª linha com ícones bem à esquerda e Perfil bem à direita | Desktop: Tudo à direita com Perfil na ponta) -->
+            <div class="order-2 lg:order-3 w-full lg:w-auto flex items-center justify-between lg:justify-end gap-2 lg:ml-auto">
+                <!-- Botões de Ação (Olho, Download, Upload, Tema) -->
+                <div class="flex items-center gap-0.5 sm:gap-1">
+                    <button id="privacyToggleBtn" class="p-1.5 sm:p-2 rounded-lg text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition" title="Ocultar / Mostrar Valores">
+                        <i id="privacyIconOpen" data-lucide="eye" class="w-4 h-4"></i>
+                        <i id="privacyIconClosed" data-lucide="eye-off" class="w-4 h-4 hidden text-emerald-500"></i>
+                    </button>
+                    <button id="exportJsonBtn" class="p-1.5 sm:p-2 rounded-lg text-zinc-400 hover:text-zinc-900 dark:hover:text-white" title="Exportar Backup"><i data-lucide="download" class="w-4 h-4"></i></button>
+                    <label class="p-1.5 sm:p-2 rounded-lg text-zinc-400 hover:text-zinc-900 dark:hover:text-white cursor-pointer" title="Importar Backup">
+                        <i data-lucide="upload" class="w-4 h-4"></i>
+                        <input type="file" id="importJsonInput" accept=".json" class="hidden">
+                    </label>
+                    <button id="themeToggleBtn" class="p-1.5 sm:p-2 rounded-lg text-zinc-400 hover:text-zinc-900 dark:hover:text-white">
+                        <i data-lucide="sun" class="w-4 h-4 hidden dark:block"></i>
+                        <i data-lucide="moon" class="w-4 h-4 block dark:hidden"></i>
+                    </button>
+                </div>
 
-                <button id="privacyToggleBtn" class="p-1.5 sm:p-2 rounded-lg text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition" title="Ocultar / Mostrar Valores">
-                    <i id="privacyIconOpen" data-lucide="eye" class="w-4 h-4"></i>
-                    <i id="privacyIconClosed" data-lucide="eye-off" class="w-4 h-4 hidden text-emerald-500"></i>
-                </button>
-                <button id="exportJsonBtn" class="p-1.5 sm:p-2 rounded-lg text-zinc-400 hover:text-zinc-900 dark:hover:text-white" title="Exportar Backup"><i data-lucide="download" class="w-4 h-4"></i></button>
-                <label class="p-1.5 sm:p-2 rounded-lg text-zinc-400 hover:text-zinc-900 dark:hover:text-white cursor-pointer" title="Importar Backup">
-                    <i data-lucide="upload" class="w-4 h-4"></i>
-                    <input type="file" id="importJsonInput" accept=".json" class="hidden">
-                </label>
-                <button id="themeToggleBtn" class="p-1.5 sm:p-2 rounded-lg text-zinc-400 hover:text-zinc-900 dark:hover:text-white">
-                    <i data-lucide="sun" class="w-4 h-4 hidden dark:block"></i>
-                    <i data-lucide="moon" class="w-4 h-4 block dark:hidden"></i>
+                <!-- Perfil sempre na extrema direita -->
+                <div id="quickProfileSwitcher" class="hidden"></div>
+                <button id="openProfileModalBtn" class="px-2.5 py-1.5 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-100 dark:bg-[#111114] text-xs font-semibold flex items-center gap-1.5 shrink-0">
+                    <span id="activeProfileDot" class="w-2 h-2 rounded-full bg-emerald-500 shrink-0"></span>
+                    <strong id="activeProfileNameBanner" class="font-semibold max-w-[90px] sm:max-w-[120px] truncate">Perfil</strong>
+                    <i data-lucide="chevron-down" class="w-3.5 h-3.5 text-zinc-400 shrink-0"></i>
                 </button>
             </div>
+
         </div>
 
         <!-- Barra de Período Personalizado -->
@@ -165,7 +189,7 @@
                 </div>
             </div>
 
-            <!-- Régua Inferior: 4 Métricas Monocromáticas em Grade 2x2 no A56 e 4x1 no PC -->
+            <!-- Régua Inferior: 4 Métricas com cores bem distintas -->
             <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-4">
                 <div>
                     <div class="flex items-center gap-1.5">
@@ -178,7 +202,7 @@
 
                 <div>
                     <div class="flex items-center gap-1.5">
-                        <span class="w-1.5 h-1.5 rounded-full bg-zinc-400"></span>
+                        <span class="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
                         <span class="text-[11px] text-zinc-400 font-medium">Contas Fixas</span>
                     </div>
                     <h2 id="kpiFixed" class="text-base sm:text-lg font-bold mt-0.5">R$ 0,00</h2>
@@ -187,7 +211,7 @@
 
                 <div>
                     <div class="flex items-center gap-1.5">
-                        <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+                        <span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
                         <span class="text-[11px] text-zinc-400 font-medium">Mercado & Avulsos</span>
                     </div>
                     <h2 id="kpiSporadic" class="text-base sm:text-lg font-bold mt-0.5">R$ 0,00</h2>
@@ -196,7 +220,7 @@
 
                 <div onclick="switchMainTab('card')" class="cursor-pointer group">
                     <div class="flex items-center gap-1.5">
-                        <span class="w-1.5 h-1.5 rounded-full bg-orange-500"></span>
+                        <span class="w-1.5 h-1.5 rounded-full bg-purple-500"></span>
                         <span class="text-[11px] text-zinc-400 font-medium group-hover:text-zinc-200 transition">Fatura Cartão ↗</span>
                     </div>
                     <h2 id="kpiCard" class="text-base sm:text-lg font-bold mt-0.5">R$ 0,00</h2>
@@ -207,14 +231,18 @@
 
         <!-- BARRA DE NAVEGAÇÃO + BOTÃO DE NOVO LANÇAMENTO -->
         <!-- No A56 fica fixa na parte de baixo; no PC fica logo abaixo do resumo -->
-        <div class="fixed bottom-0 left-0 right-0 z-30 bg-white/95 dark:bg-[#0a0a0c]/95 backdrop-blur-md border-t border-zinc-200 dark:border-zinc-800 p-2.5 lg:static lg:bg-transparent lg:border-0 lg:p-0 flex items-center justify-between gap-2">
-            <div class="grid grid-cols-3 gap-1 bg-zinc-100 dark:bg-[#111114] p-1 rounded-xl border border-zinc-200 dark:border-zinc-800 flex-1 lg:max-w-md">
+        <div class="fixed bottom-0 left-0 right-0 z-30 bg-white/95 dark:bg-[#0a0a0c]/95 backdrop-blur-md border-t border-zinc-200 dark:border-zinc-800 p-2.5 lg:static lg:bg-transparent lg:border-0 lg:p-0 flex items-center justify-between lg:justify-center gap-3">
+            <div class="grid grid-cols-4 gap-1 bg-zinc-100 dark:bg-[#111114] p-1 rounded-xl border border-zinc-200 dark:border-zinc-800 flex-1 lg:max-w-md">
                 <button onclick="switchMainTab('flow')" id="mainTab-flow" class="tab-active py-2 px-3 rounded-lg text-xs font-semibold transition text-zinc-500 flex items-center justify-center gap-1.5">
                     <span>Extrato</span>
                 </button>
                 <button onclick="switchMainTab('card')" id="mainTab-card" class="py-2 px-3 rounded-lg text-xs font-semibold transition text-zinc-500 flex items-center justify-center gap-1.5">
                     <span>Cartão</span>
                     <span id="navCardCountBadge" class="text-[10px] opacity-70">0</span>
+                </button>
+                <button onclick="switchMainTab('market')" id="mainTab-market" class="py-2 px-2 sm:px-3 rounded-lg text-xs font-semibold transition text-zinc-500 flex items-center justify-center gap-1">
+                    <span>Mercado</span>
+                    <span id="navMarketAlertBadge" class="hidden w-2 h-2 rounded-full bg-amber-500"></span>
                 </button>
                 <button onclick="switchMainTab('investments')" id="mainTab-investments" class="py-2 px-3 rounded-lg text-xs font-semibold transition text-zinc-500 flex items-center justify-center gap-1.5">
                     <span>Cofrinhos</span>
@@ -423,6 +451,7 @@
                                         <option value="10">10x</option>
                                         <option value="12">12x</option>
                                         <option value="18">18x</option>
+                                        <option value="21">21x</option>
                                         <option value="24">24x</option>
                                         <option value="recurring">Assinatura Fixa</option>
                                     </select>
@@ -576,6 +605,85 @@
             <div id="vaultsListContainer" class="space-y-3"></div>
         </section>
 
+        <!-- ========================================================= -->
+        <!-- ABA 4: MERCADO, ITENS & REPOSIÇÃO INTELIGENTE             -->
+        <!-- ========================================================= -->
+        <section id="tabSection-market" class="space-y-4 hidden">
+
+            <!-- Modal/Gaveta: Lançar Itens do Mercado -->
+            <div id="drawer-market" class="drawer-backdrop fixed inset-0 z-50 bg-black/75 backdrop-blur-xs items-end sm:items-center justify-center p-0 sm:p-4">
+                <div class="w-full max-w-lg bg-white dark:bg-[#111114] border-t sm:border border-zinc-200 dark:border-zinc-800 rounded-t-2xl sm:rounded-2xl p-5 max-h-[90vh] overflow-y-auto">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="font-bold text-sm">Registrar Compra de Mercado</h3>
+                        <button type="button" onclick="closeAllDrawers()" class="p-1 text-zinc-400 hover:text-white"><i data-lucide="x" class="w-4 h-4"></i></button>
+                    </div>
+
+                    <form id="marketForm" onsubmit="setTimeout(closeAllDrawers, 50)" class="space-y-3">
+                        <div class="grid grid-cols-2 gap-2.5">
+                            <div>
+                                <label class="block text-xs text-zinc-400 mb-1">Local / Mercado</label>
+                                <input type="text" id="marketStore" placeholder="Ex: Zaffari, Atacadão..." value="Supermercado" class="w-full px-3">
+                            </div>
+                            <div>
+                                <label class="block text-xs text-zinc-400 mb-1">Data da Compra</label>
+                                <input type="date" id="marketDate" required class="w-full px-2.5">
+                            </div>
+                        </div>
+
+                        <!-- Lista dinâmica de produtos comprados no dia -->
+                        <div class="p-3 rounded-xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 space-y-2">
+                            <div class="flex items-center justify-between">
+                                <span class="text-[11px] font-bold uppercase tracking-wider text-zinc-400">Itens comprados</span>
+                                <button type="button" id="addMarketItemRowBtn" class="text-xs font-bold text-emerald-500 hover:underline flex items-center gap-1">
+                                    + Adicionar linha
+                                </button>
+                            </div>
+
+                            <!-- Sugestões automáticas de itens que você já comprou antes -->
+                            <datalist id="knownMarketItemsList"></datalist>
+
+                            <div id="marketItemsRowsContainer" class="space-y-2 max-h-56 overflow-y-auto pr-1"></div>
+
+                            <div class="pt-2 border-t border-zinc-200 dark:border-zinc-800 flex items-center justify-between text-xs">
+                                <span class="text-zinc-400">Total dos itens:</span>
+                                <strong id="marketModalLiveTotal" class="text-sm font-extrabold text-amber-500">R$ 0,00</strong>
+                            </div>
+                        </div>
+
+                        <label class="flex items-center gap-2 cursor-pointer pt-1">
+                            <input type="checkbox" id="marketSyncToFlow" checked class="w-4 h-4 rounded">
+                            <span class="text-xs text-zinc-400">Lançar valor total também no Extrato (Supermercado)</span>
+                        </label>
+
+                        <button type="submit" class="w-full py-2.5 rounded-lg bg-zinc-900 dark:bg-white text-white dark:text-zinc-950 font-bold text-xs">
+                            Salvar Itens & Compra
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Painel 1: Radar de Reposição (O que pode estar acabando) -->
+            <div class="bg-white dark:bg-[#111114] border border-zinc-200 dark:border-zinc-800/90 rounded-2xl p-4 sm:p-5">
+                <div class="flex flex-wrap items-center justify-between gap-2 pb-3 mb-3 border-b border-zinc-100 dark:border-zinc-800/80">
+                    <div>
+                        <h3 class="text-xs font-bold uppercase tracking-wider text-amber-500">Radar de Reposição & Frequência</h3>
+                        <p class="text-[11px] text-zinc-400 mt-0.5">Calculado automaticamente pelo intervalo entre suas compras de cada item</p>
+                    </div>
+                    <input type="text" id="marketSearchInput" placeholder="Buscar produto..." class="px-3 py-1 text-xs w-full sm:w-48">
+                </div>
+                <div id="marketRestockListContainer" class="divide-y divide-zinc-100 dark:divide-zinc-800/60"></div>
+            </div>
+
+            <!-- Painel 2: Histórico de Compras por Dia -->
+            <div class="bg-white dark:bg-[#111114] border border-zinc-200 dark:border-zinc-800/90 rounded-2xl p-4 sm:p-5">
+                <div class="flex items-center justify-between pb-3 mb-2 border-b border-zinc-100 dark:border-zinc-800/80">
+                    <h3 class="text-xs font-bold uppercase tracking-wider text-zinc-400">Histórico de Compras Detalhadas</h3>
+                    <span id="marketHistoryCountBadge" class="text-xs text-zinc-400">0 registros</span>
+                </div>
+                <div id="marketTripsHistoryContainer" class="divide-y divide-zinc-100 dark:divide-zinc-800/60"></div>
+            </div>
+        </section>
+
     </main>
 
     <!-- MODAL DE EXCLUSÃO DE PARCELAMENTO -->
@@ -601,7 +709,8 @@
         function openActiveDrawer() {
             const isCard = !document.getElementById('tabSection-card').classList.contains('hidden');
             const isInv = !document.getElementById('tabSection-investments').classList.contains('hidden');
-            const targetId = isCard ? 'drawer-card' : (isInv ? 'drawer-investments' : 'drawer-flow');
+            const isMarket = !document.getElementById('tabSection-market').classList.contains('hidden');
+            const targetId = isCard ? 'drawer-card' : (isInv ? 'drawer-investments' : (isMarket ? 'drawer-market' : 'drawer-flow'));
             document.getElementById(targetId).classList.add('open');
         }
         function closeAllDrawers() {

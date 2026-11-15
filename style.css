@@ -103,3 +103,26 @@ input:focus, select:focus {
 ::-webkit-scrollbar { width: 4px; height: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 99px; }
+
+/* Modo Claro: Letra escura nítida com leve toque esmeralda */
+.font-logo {
+    color: #09090b;
+    text-shadow: 
+        0 0 8px rgba(16, 185, 129, 0.55),
+        0 0 18px rgba(16, 185, 129, 0.35),
+        0 0 32px rgba(16, 185, 129, 0.15);
+    filter: none;
+}
+
+/* Modo Escuro: Efeito Tubo Neon aceso */
+html.dark .font-logo {
+    color: #ffffff !important;
+    text-shadow: 
+        0 0 2px #ffffff,
+        0 0 5px #6ee7b7,
+        0 0 10px #10b981,
+        0 0 18px #10b981,
+        0 0 28px #059669,
+        0 0 42px #059669;
+    filter: drop-shadow(0 0 8px rgba(16, 185, 129, 0.75));
+}
