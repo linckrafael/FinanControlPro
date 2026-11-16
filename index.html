@@ -31,6 +31,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <script src="https://unpkg.com/lucide@latest"></script>
     <link rel="stylesheet" href="style.css">
+    <link rel="manifest" href="manifest.json">
 </head>
 <body class="min-h-screen pb-28 lg:pb-16 selection:bg-zinc-800 selection:text-white">
 
@@ -718,5 +719,12 @@
         }
     </script>
     <script type="module" src="script.js?v=3"></script>
+    <script>
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw.js')
+      .then(() => console.log("Service Worker registrado com sucesso!"))
+      .catch((err) => console.log("Erro ao registrar Service Worker:", err));
+  }
+</script>
 </body>
 </html>
